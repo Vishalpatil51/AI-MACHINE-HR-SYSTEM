@@ -1,0 +1,270 @@
+<main class="app-shell">
+  <section class="hero">
+    <div>
+      <p class="eyebrow">AI Machine HR System</p>
+      <h1>Manage employees, projects, and assignments from one workspace.</h1>
+      <p class="hero-copy">
+        This Angular dashboard connects to the Spring Boot assignment API and gives HR and project managers a
+        focused interface for team planning, staffing, and workforce visibility.
+      </p>
+      <div class="hero-actions">
+        <button type="button" class="primary" (click)="loadDashboard()" [disabled]="isLoading()">
+          {{ isLoading() ? 'Refreshing…' : 'Refresh data' }}
+        </button>
+        <a href="#assignment-panel" class="secondary">Create assignment</a>
+      </div>
+    </div>
+    <div class="hero-card">
+      <span>Active staffing</span>
+      <strong>{{ activeAssignments().length }}</strong>
+      <small>employee-project links</small>
+    </div>
+  </section>
+
+  <section class="stats-grid" aria-label="HR summary metrics">
+    <article>
+      <span>Total employees</span>
+      <strong>{{ employees().length }}</strong>
+      <small>people in the system</small>
+    </article>
+    <article>
+      <span>Open projects</span>
+      <strong>{{ projects().length }}</strong>
+      <small>registered repositories</small>
+    </article>
+    <article>
+      <span>Average score</span>
+      <strong>{{ averageScore() }}</strong>
+      <small>out of 100</small>
+    </article>
+    <article>
+      <span>Total payroll</span>
+      <strong>{{ totalPayroll() | currency }}</strong>
+      <small>based on entered salaries</small>
+    </article>
+  </section>
+
+  @if (statusMessage()) {
+    <p class="alert success">{{ statusMessage() }}</p>
+  }
+
+  @if (errorMessage()) {
+    <p class="alert error">{{ errorMessage() }}</p>
+  }
+
+  <section class="workspace-grid">
+    <form class="panel form-panel" (ngSubmit)="createEmployee()">
+      <div class="panel-heading">
+        <p class="eyebrow">People</p>
+        <h2>Add employee</h2>
+      </div>
+
+      <label>
+        Name
+        <input type="text" name="name" [(ngModel)]="employeeForm.name" placeholder="Jane Doe" required>
+      </label>
+      <label>
+        Email
+        <input type="email" name="email" [(ngModel)]="employeeForm.email" placeholder="jane@company.com" required>
+      </label>
+      <div class="two-columns">
+        <label>
+          Role
+          <select name="role" [(ngModel)]="employeeForm.role" required>
+            @for (role of roles; track role) {
+              <option [value]="role">{{ role.replace('_', ' ') }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Team
+          <input type="text" name="team" [(ngModel)]="employeeForm.team" placeholder="Platform">
+        </label>
+      </div>
+      <div class="two-columns">
+        <label>
+          Position
+          <input type="text" name="position" [(ngModel)]="employeeForm.position" placeholder="Senior Engineer">
+        </label>
+        <label>
+          Gender
+          <input type="text" name="gender" [(ngModel)]="employeeForm.gender" placeholder="Optional">
+        </label>
+      </div>
+      <div class="two-columns">
+        <label>
+          Birth date
+          <input type="date" name="birthDate" [(ngModel)]="employeeForm.birthDate">
+        </label>
+        <label>
+          Recruitment date
+          <input type="date" name="recruitmentDate" [(ngModel)]="employeeForm.recruitmentDate">
+        </label>
+      </div>
+      <div class="two-columns">
+        <label>
+          Score
+          <input type="number" name="score" [(ngModel)]="employeeForm.score" min="0" max="100" placeholder="87">
+        </label>
+        <label>
+          Salary
+          <input type="number" name="salary" [(ngModel)]="employeeForm.salary" min="0" step="100" placeholder="95000">
+        </label>
+      </div>
+      <button class="primary full-width" type="submit" [disabled]="isSavingEmployee()">
+        {{ isSavingEmployee() ? 'Saving employee…' : 'Save employee' }}
+      </button>
+    </form>
+
+    <form class="panel form-panel" (ngSubmit)="createProject()">
+      <div class="panel-heading">
+        <p class="eyebrow">Projects</p>
+        <h2>Add project</h2>
+      </div>
+      <label>
+        Project name
+        <input type="text" name="projectName" [(ngModel)]="projectForm.name" placeholder="AI Interview Assistant" required>
+      </label>
+      <label>
+        Repository URL
+        <input type="url" name="repo" [(ngModel)]="projectForm.repo" placeholder="https://github.com/company/project">
+      </label>
+      <button class="primary full-width" type="submit" [disabled]="isSavingProject()">
+        {{ isSavingProject() ? 'Saving project…' : 'Save project' }}
+      </button>
+
+      <div id="assignment-panel" class="assignment-box">
+        <h3>Create assignment</h3>
+        <label>
+          Employee
+          <select [value]="selectedEmployeeId()" (change)="updateSelectedEmployee($event)">
+            @for (employee of employees(); track employee.id) {
+              <option [value]="employee.id">{{ employee.name }} — {{ employee.role.replace('_', ' ') }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Project
+          <select [value]="selectedProjectId()" (change)="updateSelectedProject($event)">
+            @for (project of projects(); track project.id) {
+              <option [value]="project.id">{{ project.name }}</option>
+            }
+          </select>
+        </label>
+        <button class="secondary full-width" type="button" (click)="assignSelected()" [disabled]="isAssigning()">
+          {{ isAssigning() ? 'Assigning…' : 'Assign employee to project' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel data-panel">
+    <div class="panel-heading row-heading">
+      <div>
+        <p class="eyebrow">Directory</p>
+        <h2>Employees</h2>
+      </div>
+      <span>{{ employees().length }} records</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Team</th>
+            <th>Score</th>
+            <th>Salary</th>
+            <th>Joined</th>
+            <th>Projects</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (employee of employees(); track employee.id) {
+            <tr>
+              <td>
+                <strong>{{ employee.name }}</strong>
+                <small>{{ employee.email }}</small>
+              </td>
+              <td>{{ employee.role.replace('_', ' ') }}</td>
+              <td>{{ employee.team || '—' }}</td>
+              <td>{{ employee.score ?? '—' }}</td>
+              <td>{{ employee.salary ? (employee.salary | currency) : '—' }}</td>
+              <td>{{ employee.recruitmentDate ? (employee.recruitmentDate | date: 'mediumDate') : '—' }}</td>
+              <td>
+                @if (employee.projects?.length) {
+                  <div class="chip-list">
+                    @for (project of employee.projects; track project.id) {
+                      <span class="chip">{{ project.name }}</span>
+                    }
+                  </div>
+                } @else {
+                  <span class="muted">Unassigned</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-state">No employees found. Add one to get started.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cards-grid">
+    <article class="panel">
+      <div class="panel-heading row-heading">
+        <div>
+          <p class="eyebrow">Portfolio</p>
+          <h2>Projects</h2>
+        </div>
+        <span>{{ projects().length }} projects</span>
+      </div>
+      <div class="list-stack">
+        @for (project of projects(); track project.id) {
+          <div class="list-card">
+            <div>
+              <strong>{{ project.name }}</strong>
+              @if (project.repo) {
+                <a [href]="project.repo" target="_blank" rel="noreferrer">Repository</a>
+              } @else {
+                <small>No repository provided</small>
+              }
+            </div>
+            <span>{{ project.employees?.length ?? 0 }} employees</span>
+          </div>
+        } @empty {
+          <p class="empty-state">No projects found. Add your first project above.</p>
+        }
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-heading row-heading">
+        <div>
+          <p class="eyebrow">Assignments</p>
+          <h2>Active links</h2>
+        </div>
+        <span>{{ activeAssignments().length }} links</span>
+      </div>
+      <div class="list-stack">
+        @for (assignment of activeAssignments(); track assignment.employee.id + assignment.project.id) {
+          <div class="list-card assignment-card">
+            <div>
+              <strong>{{ assignment.employee.name }}</strong>
+              <small>{{ assignment.project.name }}</small>
+            </div>
+            <button type="button" class="ghost" (click)="unassign(assignment.employee.id, assignment.project.id)">
+              Remove
+            </button>
+          </div>
+        } @empty {
+          <p class="empty-state">No active assignments yet.</p>
+        }
+      </div>
+    </article>
+  </section>
+</main>
